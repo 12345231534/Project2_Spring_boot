@@ -2,10 +2,12 @@ package com.javaweb.repository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import com.javaweb.model.BuildingDTO;
 import com.javaweb.repository.entity.BuildingEntity;
 
 public interface BuildingRepository {
-	List<BuildingEntity> findALL(String name, Long districtID);
+	List<BuildingEntity> findALL(Map<String, Object> params, List<String> typeCode);
 
 }
