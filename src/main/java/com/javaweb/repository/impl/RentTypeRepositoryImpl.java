@@ -23,7 +23,6 @@ public class RentTypeRepositoryImpl  implements RentTypeRepository{
 				+ "inner join buildingrenttype as b on b.renttypeid = r.id "
 				+ "where b.buildingid =  "+  id;
 		RentTypeEntity rentTypeEntity =  new RentTypeEntity();
-		System.out.println(sql);
 		try(Connection con =  ConnectSQL.connect();
 				Statement stmt = con.createStatement();
 				ResultSet rs = stmt.executeQuery(sql);){

@@ -1,5 +1,6 @@
 package com.javaweb.repository.impl;
 
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Repository;
 
+import com.javaweb.builder.BuildingSearchBuilder;
 import com.javaweb.model.BuildingDTO;
 import com.javaweb.repository.BuildingRepository;
 import com.javaweb.repository.entity.BuildingEntity;
@@ -22,67 +24,82 @@ import com.javaweb.utils.NumberUtil;
 @Repository
 public class BuildingRepositoryImpl implements BuildingRepository {
 	
-	public static void joinTable(Map<String, Object> params, List<String> typeCode, StringBuilder sql) {
-		String staffID = (String) params.get("staffID");
-		String areaTo = (String) params.get("areaTo");
-		String areaFrom = (String) params.get("AreaFrom");
+	public static void joinTable(BuildingSearchBuilder buildingSearchBuilder, StringBuilder sql) {
+		Integer staffID = buildingSearchBuilder.getStaffID();
+		Integer areaTo = buildingSearchBuilder.getAreaTo();
+		Integer areaFrom = buildingSearchBuilder.getAreaFrom();
 
-		if(StringUtil.checkString(staffID)) {
+		if(staffID != null) {
 			sql.append("INNER JOIN assignmentbuilding on b.id  = assignmentbuilding.buildingid ");
 		}
+		List<String> typeCode = buildingSearchBuilder.getTypeCode();
 		if(typeCode != null && typeCode.size() != 0) {
 			sql.append("INNER JOIN buildingrenttype  on buildingrenttype.buildingid = b.id ");
 			sql.append("INNER JOIN renttype  on renttype.id = buildingrenttype.renttypeid ");
 		}
 		
-		if(StringUtil.checkString(areaTo) || StringUtil.checkString(areaFrom)) {
+		if(areaTo != null ||  areaFrom != null) {
 			sql.append("INNER JOIN rentarea as r on r.buildingid = b.id " );
 		}
 	}
-	public static void normalQuery(Map<String, Object> params,  StringBuilder where) {
-		for(Map.Entry<String, Object> it : params.entrySet()) {
-			if(!it.getKey().equals("staffID") && !it.getKey().startsWith("area") 
-					&& !it.getKey().startsWith("price") && !it.getKey().equals("typeCode")) {
-				String value = it.getValue().toString();
-				if (NumberUtil.isNumber(it.getKey())) {
-					where.append(" AND b." + it.getKey() +" = "  + value +" ");
+	public static void normalQuery(BuildingSearchBuilder buildingSearchBuilder,  StringBuilder where) {
+		
+		try {
+			Field[] fields = BuildingSearchBuilder.class.getDeclaredFields();
+			for (Field item : fields) {
+				item.setAccessible(true);
+				String fieldName = item.getName();
+				if(!fieldName.equals("staffID") && fieldName.startsWith("area") 
+						&& !fieldName.startsWith("price") && !fieldName.equals("typeCode")) {
+					Object value = item.get(buildingSearchBuilder);
+					if(value != null) {
+						if(item.getType().getName().equals("java.lang.Integer")) {
+							where.append(" AND b." + fieldName +" = "  + value +" ");
+						}
+						else if(item.getType().getName().equals("java.lang.String")) {
+							where.append(" AND b." + fieldName + " LIKE '%" + value + "%' ");
+						}
+					}
 				}
-				else {
-					where.append(" AND b." + it.getKey() + " LIKE '%" + value + "%' ");
-				}
+				
 			}
 		}
+		catch(Exception ex) {
+			ex.printStackTrace();
+		}
+		
 	}
 	
-	public static void specialQuery(Map<String, Object> params, List<String> typeCode, StringBuilder where) {
-		String staffID = (String) params.get("staffID");
-		if (StringUtil.checkString(staffID)) {
+	public static void specialQuery(BuildingSearchBuilder buildingSearchBuilder, StringBuilder where) {
+		Integer staffID = buildingSearchBuilder.getStaffID();
+		if (staffID != null) {
 			where.append(" AND assignmentbuilding.staffid = " + staffID +" ");
 		}
-		String areaTo = (String) params.get("areaTo");
-		String areaFrom = (String) params.get("AreaFrom");
-		if(StringUtil.checkString(areaTo) && StringUtil.checkString(areaFrom)) {
+		Integer areaTo = buildingSearchBuilder.getAreaTo();
+		Integer areaFrom = buildingSearchBuilder.getAreaFrom();
+		if(areaTo != null &&  areaFrom != null) {
 			where.append(" AND r.value >= " +areaFrom  + "AND r.value  <= " + areaTo +" ");
 		}
-		else if (StringUtil.checkString(areaFrom)) {
+		else if (areaFrom != null) {
 			where.append(" AND r.value >= " +areaFrom +" ") ;
 		}
-		else if (StringUtil.checkString(areaTo)) {
+		else if (areaTo != null) {
 			where.append(" AND r.value <= " +areaTo +" ") ;
 		}
-		String priceFrom = (String) params.get("priceFrom");
-		String priceTo = (String) params.get("priceTo");
-		if(StringUtil.checkString(priceFrom) && StringUtil.checkString(priceTo)) {
+		Integer priceFrom = buildingSearchBuilder.getPriceFrom();
+		Integer priceTo = buildingSearchBuilder.getPriceTo();
+		if(priceFrom != null && priceTo != null) {
 			where.append(" AND b.rentprice >= " +priceFrom  + "AND b.rentprice  <= " + priceTo +" ");
 		}
-		else if (StringUtil.checkString(priceFrom)) {
+		else if (priceFrom != null) {
 			where.append(" AND b.rentprice >= " +priceFrom +" ") ;
 		}
-		else if (StringUtil.checkString(priceTo)) {
+		else if (priceTo != null) {
 			where.append(" AND b.rentprice <= " +priceTo +" ") ;
 		}
 		
 		//java 8
+		List<String> typeCode = buildingSearchBuilder.getTypeCode();
 		if(typeCode != null && typeCode.size() != 0) {
 			where.append(" AND (");
 			String sql = typeCode.stream().map(it -> "renttype.code like '%"+it+"%' ").collect(Collectors.joining(" or "));
@@ -93,14 +110,14 @@ public class BuildingRepositoryImpl implements BuildingRepository {
 	
 	
 	@Override
-	public List<BuildingEntity> findALL(Map<String, Object> params, List<String> typeCode) {
+	public List<BuildingEntity> findALL(BuildingSearchBuilder buildingSearchBuilder) {
 		StringBuilder sql = new StringBuilder("SELECT b.id, b.name,b.street, b.ward, b.street, b.districtid, b.structure, "
 				+ "b.numberofbasement, b.floorarea, b.rentprice, b.level, b.servicefee, b.managername, b.managerphonenumber, b.brokeragefee FROM building b  ");
 			
-		joinTable(params, typeCode, sql);
+		joinTable(buildingSearchBuilder, sql);
 		sql.append("WHERE 1=1 ");
-		normalQuery(params, sql);
-		specialQuery(params, typeCode, sql);
+		normalQuery(buildingSearchBuilder, sql);
+		specialQuery(buildingSearchBuilder, sql);
 		sql.append("GROUP BY b.id");
 		System.out.println(sql);
 		

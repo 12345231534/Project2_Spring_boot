@@ -24,7 +24,7 @@ public class RentAreaRepositoryImpl implements RentAreaRepository{
 				
 				
 		List<RentAreaEntity> result =  new ArrayList<RentAreaEntity>();
-		System.out.println(sql);
+
 		try(Connection con =  ConnectSQL.connect();
 				Statement stmt = con.createStatement();
 				ResultSet rs = stmt.executeQuery(sql);){
