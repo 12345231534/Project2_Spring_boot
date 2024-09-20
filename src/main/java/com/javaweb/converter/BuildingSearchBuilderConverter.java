@@ -24,8 +24,6 @@ public class BuildingSearchBuilderConverter {
 															.setTypeCode(typeCode)
 															.setServiceFee(MapUtil.getObject(params, "serviceFee", Integer.class))															
 															.build();	
-		System.out.println("check2");
-		System.out.println(buildingSearchBuilder);
 		return buildingSearchBuilder;																
 	}
 }
